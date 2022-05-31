@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% load thumbnail %}
+{% load cache %}
+{% block title %}Подписки{% endblock %}
+{% block content %}
+{% cache 20 index_page with page_obj %}
+    <div class="container">
+        <h1>Подписки</h1>
+        {% include 'posts/includes/switcher.html' %}
+        {% for post in page_obj %}
+          {% include 'includes/post.html' %}
+                {% if post.group %}
+                    <a href="{% url 'posts:group_list' post.group.slug %}">все записи группы {{post.group.title}}</a>
+                {% endif %}
+            </article>
+            {% if not forloop.last %}<hr>{% endif %}
+        {% endfor %}
+{% endcache %}         
+        {% include 'posts/includes/paginator.html' %}
+    </div>   
+{% endblock %}

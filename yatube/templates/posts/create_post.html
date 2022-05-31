@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% block title %} {% if form.instance.pk %} Редактировать запись {% else %} Новая запись {% endif %} {% endblock %}
+{% block content %}
+    <div class="row justify-content-center">
+        <div class="col-md-8 p-5">
+            <div class="card">
+                <div class="card-header">
+                    {% if form.instance.pk %}
+                        Редактировать запись
+                    {% else %}
+                        Новая запись
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data"
+                          action="{% if form.instance.pk %} {% url 'posts:post_edit' form.instance.pk %} {% else %} {% url 'posts:post_create' %}{% endif %}">
+                        {% load user_filters %}
+                        {% csrf_token %}
+                        {% for field in form %}
+                            <div class="form-group row my-3">
+                                <label for="{{ field.id_for_label }}">
+                                    {{ field.label }}
+                                    {% if field.field.required %}<span class="required text-danger">*</span>{% endif %}
+                                </label>
+                                {{ field|addclass:'form-control' }}
+                                {% if field.help_text %}
+                                    <small id="{{ field.id_for_label }}-help" class="form-text text-muted">{{ field.help_text|safe }}</small>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                        <div class="d-flex justify-content-end">
+                            <button type="submit" class="btn btn-primary">
+                                {% if form.instance.pk %}
+                                    Сохранить
+                                {% else %}
+                                    Добавить
+                                {% endif %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
