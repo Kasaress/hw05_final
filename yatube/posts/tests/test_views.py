@@ -1,10 +1,13 @@
 import shutil
 import tempfile
+from io import BytesIO
 
 from django import forms
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
+from django.core.files import File
+from django.core.files.images import ImageFile
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.paginator import Page
 from django.test import Client, TestCase, override_settings
@@ -27,7 +30,7 @@ class PostPagesTests(TestCase):
         cls.group = Group.objects.create(
             title='Тестовый заголовок',
             slug='test-slug',
-        )
+        )    
         cls.small_gif = (
             b'\x47\x49\x46\x38\x39\x61\x02\x00'
             b'\x01\x00\x80\x00\x00\x00\x00\x00'
@@ -105,6 +108,7 @@ class PostPagesTests(TestCase):
 
     def test_pages_uses_correct_template(self):
         """URL-адрес использует соответствующий шаблон."""
+        cache.close()
         group = PostPagesTests.group
         user = PostPagesTests.user
         post = PostPagesTests.post
@@ -130,47 +134,55 @@ class PostPagesTests(TestCase):
 
     def test_post_index_show_correct_context(self):
         """Шаблон index сформирован с правильным контекстом."""
+        cache.close()
         response = (self.authorized_client.get(reverse('posts:index')))
         # Получаем первый пост из списка, переданного пагинатором
-        first_object = response.context['page_obj'][0]
-        post_text_0 = first_object.text
-        post_author_0 = str(first_object.author)
-        post_group_0 = str(first_object.group)
-        post_image = str(first_object.image)
-        post = PostPagesTests.post_user2
+        post = response.context['page_obj'][0]
+        # Достаем тот же пост из фикстур
+        post_same = PostPagesTests.post_user2
+        # Собираем инфу в кортеж кортежей и сравниваем в сабтесте
+        post_info = (
+            (f'{post.text}', post_same.text),
+            (f'{post.author}', str(post_same.author)),
+            (f'{post.group}', str(post_same.group)),
+            ('posts/small.gif', str(post_same.image)),
+        )
+        for post_fields, post_same_fields in post_info:
+            with self.subTest():
+                self.assertEqual(post_fields, post_same_fields)
         # проверяем, что в контексте есть список постов
         self.assertIn('page_obj', response.context)
         # проверяем, что список постов действительно
         # относитеся к классу, отданному пагинатором
         self.assertIsInstance(
             response.context['page_obj'], Page)
-        # проверяем равенство свойств поста,
-        # полученного из контекста и поста из фикстур
-        self.assertEqual(post_text_0, f'{post.text}')
-        self.assertEqual(post_author_0, f'{post.author}')
-        self.assertEqual(post_group_0, f'{post.group}')
-        self.assertEqual(post_image, 'posts/small.gif')
         # проверяем, что у поста верная группа
-        self.assertNotEqual(post_group_0, str(PostPagesTests.group))
+        self.assertNotEqual(f'{post.group}', str(PostPagesTests.group))
 
     def test_post_group_list_show_correct_context(self):
         """Шаблон group_list сформирован с правильным контекстом."""
+        cache.close()
         group = PostPagesTests.group
         response = (self.authorized_client.get(reverse('posts:group_list',
                     args=[group.slug])))
-        first_object = response.context['page_obj'][0]
-        post_group_0 = first_object.group
-        post_image = str(first_object.image)
+        post = response.context['page_obj'][0]
+        # Собираем инфу в кортеж кортежей и сравниваем в сабтесте
+        info = (
+            (group, response.context['group']),
+            (post.group, response.context['group']),
+            ('posts/small2.gif', str(post.image)),
+        )
+        for fixture_info, comtext_info in info:
+            with self.subTest():
+                self.assertEqual(fixture_info, comtext_info)
         self.assertIn('page_obj', response.context)
         self.assertIsInstance(response.context['page_obj'], Page)
-        self.assertEqual(post_image, 'posts/small2.gif')
-        self.assertEqual(group, response.context['group'])
-        self.assertEqual(post_group_0, response.context['group'])
         self.assertNotEqual(PostPagesTests.group_for_user2,
                             response.context['group'])
 
     def test_post_profile_show_correct_context(self):
         """Шаблон profile сформирован с правильным контекстом."""
+        cache.close()
         author = PostPagesTests.user
         response = (self.authorized_client.get(reverse('posts:profile',
                     args=[author.username])))
@@ -192,6 +204,7 @@ class PostPagesTests(TestCase):
 
     def test_post_post_detail_show_correct_context(self):
         """Шаблон post_detail сформирован с правильным контекстом."""
+        cache.close()
         post = PostPagesTests.post
         response = (self.authorized_client.get(reverse('posts:post_detail',
                     args=[post.pk])))
@@ -204,6 +217,7 @@ class PostPagesTests(TestCase):
     def test_post_edit_post_show_correct_context(self):
         """Шаблон create_post для редактирования поста сформирован
         с правильным контекстом."""
+        cache.close()
         post = PostPagesTests.post
         response = (self.authorized_client.get(reverse('posts:post_edit',
                     args=[post.pk])))
@@ -219,6 +233,7 @@ class PostPagesTests(TestCase):
     def test_post_create_post_show_correct_context(self):
         """Шаблон create_post для создания поста сформирован
         с правильным контекстом."""
+        cache.close()
         response = (self.authorized_client.get(reverse('posts:post_create')))
         form_fields = {
             'text': forms.fields.CharField,
@@ -251,6 +266,7 @@ class PostPagesTests(TestCase):
 
     def test_authorizate_can_follow(self):
         """ Авторизованный пользователь может подписаться на автора """
+        cache.close()
         # запросим количество подписок юзера
         follow_list_old = PostPagesTests.user.follower.count()
         # делаем запрос подписки от юзера на страницу автора юзер2
@@ -264,6 +280,7 @@ class PostPagesTests(TestCase):
 
     def test_authorizate_can_unfollow(self):
         """ Авторизованный пользователь может отписаться от автора."""
+        cache.close()
         # делаем запрос подписки от юзера на страницу автора юзер2
         self.authorized_client.get(reverse(
             'posts:profile_follow',
@@ -282,6 +299,7 @@ class PostPagesTests(TestCase):
     def test_follow_post(self):
         """Новая запись автора появляется в ленте подписчиков,
         и не появляется в ленте подписок не подписчиков"""
+        cache.close()
         # создаем подписку от юзера на юзера2
         self.authorized_client.get(reverse(
             'posts:profile_follow',

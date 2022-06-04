@@ -1,6 +1,7 @@
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.test import TestCase
 
 from ..models import Group, Post
@@ -23,21 +24,31 @@ class PostModelTest(TestCase):
             text='Тестовый постаментище',
         )
 
-    def test_models_have_correct_object_names(self):
-        """Проверяем, что у моделей корректно работает __str__."""
-        self.assertEqual(
-            str(PostModelTest.post),
-            PostModelTest.post.text[:settings.POST_TEXT_SHORT]
-        )
-        self.assertEqual(str(PostModelTest.group), 'Тестовая группа')
+    def setUp(self):
+        cache.close()
 
-    def test_post_help_text(self):
-        """help_text полей text и group модели post совпадает с ожидаемым."""
-        help_text_text = PostModelTest.post._meta.get_field('text').help_text
-        help_text_group = PostModelTest.post._meta.get_field('group').help_text
-        self.assertEqual(help_text_text, 'Введите текст поста')
-        self.assertEqual(help_text_group,
-                         'Группа, к которой будет относиться пост')
+    def test_model_post_have_correct_object_names(self):
+        """Проверяем, что у модели корректно работает __str__."""
+        strs = (
+            (str(PostModelTest.post),
+                PostModelTest.post.text[:settings.POST_TEXT_SHORT]),
+            (str(PostModelTest.group), 'Тестовая группа'),
+        )
+        for model_str, test_str in strs:
+            with self.subTest():
+                self.assertEqual(model_str, test_str)
+
+    def test_post_names(self):
+        """Help_text полей модели post совпадает с ожидаемым."""
+        help_texts = (
+            (PostModelTest.post._meta.get_field('text').help_text,
+                'Введите текст поста'),
+            (PostModelTest.post._meta.get_field('group').help_text,
+                'Группа, к которой будет относиться пост'),
+        )
+        for model_name, test_name in help_texts:
+            with self.subTest():
+                self.assertEqual(model_name, test_name)
 
     def test_post_verbose_name(self):
         """verbose_name всех полей модели post совпадает с ожидаемым."""

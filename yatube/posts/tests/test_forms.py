@@ -1,7 +1,9 @@
 import shutil
 import tempfile
+from http import HTTPStatus
 
 from django.conf import settings
+from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
@@ -39,6 +41,7 @@ class PostCreateFormTests(TestCase):
         shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
 
     def setUp(self):
+        cache.close()
         self.not_authorized_client = Client()
         self.authorized_client = Client()
         self.authorized_client.force_login(PostCreateFormTests.user)
@@ -78,8 +81,10 @@ class PostCreateFormTests(TestCase):
                 image='posts/small.gif',
             ).exists()
         )
+        self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertRedirects(response, reverse(
-            'posts:profile', args=[PostCreateFormTests.user.username]))
+            'posts:profile', args=[PostCreateFormTests.user.username]),
+            HTTPStatus.FOUND)
 
     def test_not_create_post_not_authorizate(self):
         """Неавторизованный пользователь не может создать пост."""
@@ -88,12 +93,17 @@ class PostCreateFormTests(TestCase):
             'text': 'Тестовый пост для формы',
             'group': PostCreateFormTests.group.pk,
         }
-        self.not_authorized_client.post(
+        response = self.not_authorized_client.post(
             reverse('posts:post_create'),
             data=form_data,
             follow=True
         )
         self.assertEqual(Post.objects.count(), posts_count)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertRedirects(
+            response,
+            '/auth/login/?next=%2Fcreate%2F',
+            HTTPStatus.FOUND)
 
     def test_edit_post(self):
         """Валидная форма редактирует запись Post."""

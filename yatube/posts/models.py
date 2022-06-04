@@ -1,3 +1,4 @@
+from core.models import CreatedModel
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import models
@@ -5,7 +6,7 @@ from django.db import models
 User = get_user_model()
 
 
-class Post(models.Model):
+class Post(CreatedModel):
     text = models.TextField(
         verbose_name='Текст',
         help_text='Введите текст поста')
@@ -39,7 +40,7 @@ class Post(models.Model):
         return self.text[:settings.POST_TEXT_SHORT]
 
 
-class Group(models.Model):
+class Group(CreatedModel):
     title = models.CharField(max_length=200, verbose_name='Группа')
     slug = models.SlugField(unique=True, verbose_name='Адрес группы')
     description = models.TextField(verbose_name='Описание группы')
@@ -52,7 +53,7 @@ class Group(models.Model):
         return self.title
 
 
-class Comment(models.Model):
+class Comment(CreatedModel):
     post = models.ForeignKey(
         Post,
         on_delete=models.CASCADE,
@@ -63,9 +64,6 @@ class Comment(models.Model):
         on_delete=models.CASCADE,
         related_name='comments',
         verbose_name='Автор')
-    created = models.DateTimeField(
-        auto_now_add=True,
-        verbose_name='Опубликовано')
     text = models.TextField(
         verbose_name='Текст комментария',
         help_text='Введите текст комментария')
@@ -79,7 +77,7 @@ class Comment(models.Model):
         return self.text[:settings.POST_TEXT_SHORT]
 
 
-class Follow(models.Model):
+class Follow(CreatedModel):
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -94,3 +92,8 @@ class Follow(models.Model):
     class Meta:
         verbose_name_plural = 'Подписчики'
         verbose_name = 'Подписчик'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'author'],
+                name='unique follow')
+        ]

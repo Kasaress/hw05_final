@@ -1,11 +1,13 @@
 from http import HTTPStatus
 
+from django.core.cache import cache
 from django.test import Client, TestCase
 from django.urls import reverse
 
 
 class AboutURLTests(TestCase):
     def setUp(self):
+        cache.close()
         self.guest_client = Client()
 
     def test_pages_for_everybody(self):
