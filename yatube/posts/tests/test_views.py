@@ -1,13 +1,10 @@
 import shutil
 import tempfile
-from io import BytesIO
 
 from django import forms
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
-from django.core.files import File
-from django.core.files.images import ImageFile
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.paginator import Page
 from django.test import Client, TestCase, override_settings
@@ -30,7 +27,7 @@ class PostPagesTests(TestCase):
         cls.group = Group.objects.create(
             title='Тестовый заголовок',
             slug='test-slug',
-        )    
+        )
         cls.small_gif = (
             b'\x47\x49\x46\x38\x39\x61\x02\x00'
             b'\x01\x00\x80\x00\x00\x00\x00\x00'
